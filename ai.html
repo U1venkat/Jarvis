@@ -1,0 +1,654 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JARVIS AI — Live Demo</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Exo+2:wght@300;400;600;800&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --cyan: #00f5ff;
+    --blue: #0066ff;
+    --dark-blue: #003380;
+    --bg: #020b18;
+    --bg2: #041225;
+    --panel: rgba(0, 30, 60, 0.7);
+    --border: rgba(0, 245, 255, 0.2);
+    --text: #c8f0ff;
+    --dim: rgba(0,245,255,0.5);
+  }
+
+  html, body {
+    height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Exo 2', sans-serif;
+    overflow: hidden;
+  }
+
+  /* Animated grid background */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(0,245,255,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,245,255,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* Ambient glow blobs */
+  .blob {
+    position: fixed;
+    border-radius: 50%;
+    filter: blur(120px);
+    pointer-events: none;
+    z-index: 0;
+    opacity: 0.15;
+  }
+  .blob-1 { width: 600px; height: 600px; background: #0044ff; top: -200px; left: -200px; }
+  .blob-2 { width: 400px; height: 400px; background: #00ccff; bottom: -100px; right: -100px; animation: pulse 6s ease-in-out infinite; }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 0.12; transform: scale(1); }
+    50% { opacity: 0.2; transform: scale(1.1); }
+  }
+
+  /* Main layout */
+  .app {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 16px;
+    gap: 12px;
+  }
+
+  /* Header */
+  .header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 16px 20px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    backdrop-filter: blur(20px);
+    flex-shrink: 0;
+  }
+
+  .logo-ring {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    border: 2px solid var(--cyan);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    flex-shrink: 0;
+    animation: spin-ring 8s linear infinite;
+  }
+  .logo-ring::before {
+    content: '';
+    position: absolute;
+    inset: 4px;
+    border-radius: 50%;
+    border: 1px solid rgba(0,245,255,0.3);
+    animation: spin-ring 4s linear infinite reverse;
+  }
+  .logo-ring span {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 13px;
+    color: var(--cyan);
+    font-weight: bold;
+    letter-spacing: 1px;
+  }
+  @keyframes spin-ring {
+    to { transform: rotate(360deg); }
+  }
+
+  .header-info { flex: 1; }
+  .header-title {
+    font-size: 22px;
+    font-weight: 800;
+    letter-spacing: 3px;
+    color: #fff;
+    text-shadow: 0 0 20px var(--cyan);
+  }
+  .header-subtitle {
+    font-size: 11px;
+    color: var(--dim);
+    letter-spacing: 2px;
+    font-family: 'Share Tech Mono', monospace;
+    margin-top: 2px;
+  }
+
+  .status-dot {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: #00ff88;
+    font-family: 'Share Tech Mono', monospace;
+    letter-spacing: 1px;
+  }
+  .dot {
+    width: 8px;
+    height: 8px;
+    background: #00ff88;
+    border-radius: 50%;
+    box-shadow: 0 0 8px #00ff88;
+    animation: blink-dot 2s ease-in-out infinite;
+  }
+  @keyframes blink-dot {
+    0%,100% { opacity: 1; }
+    50% { opacity: 0.3; }
+  }
+
+  /* Chat window */
+  .chat-window {
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding: 20px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    backdrop-filter: blur(20px);
+    scroll-behavior: smooth;
+  }
+
+  .chat-window::-webkit-scrollbar { width: 4px; }
+  .chat-window::-webkit-scrollbar-track { background: transparent; }
+  .chat-window::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  /* Messages */
+  .msg {
+    display: flex;
+    gap: 12px;
+    animation: msg-in 0.3s ease-out;
+  }
+  @keyframes msg-in {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .msg.user { flex-direction: row-reverse; }
+
+  .avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    font-weight: 700;
+    flex-shrink: 0;
+    font-family: 'Share Tech Mono', monospace;
+  }
+  .avatar.jarvis {
+    background: linear-gradient(135deg, #003366, #005599);
+    border: 1px solid var(--cyan);
+    color: var(--cyan);
+    box-shadow: 0 0 12px rgba(0,245,255,0.3);
+  }
+  .avatar.user-av {
+    background: linear-gradient(135deg, #001a33, #002244);
+    border: 1px solid rgba(0,245,255,0.4);
+    color: #80ccff;
+  }
+
+  .bubble {
+    max-width: 75%;
+    padding: 12px 16px;
+    border-radius: 12px;
+    font-size: 14px;
+    line-height: 1.6;
+  }
+  .msg.jarvis .bubble {
+    background: rgba(0, 50, 100, 0.5);
+    border: 1px solid rgba(0,245,255,0.2);
+    color: var(--text);
+    border-top-left-radius: 4px;
+  }
+  .msg.user .bubble {
+    background: rgba(0, 80, 160, 0.4);
+    border: 1px solid rgba(0, 150, 255, 0.3);
+    color: #ddeeff;
+    border-top-right-radius: 4px;
+    text-align: right;
+  }
+
+  .sender-label {
+    font-size: 10px;
+    letter-spacing: 1.5px;
+    margin-bottom: 4px;
+    font-family: 'Share Tech Mono', monospace;
+  }
+  .msg.jarvis .sender-label { color: var(--cyan); }
+  .msg.user .sender-label { color: #80aaff; text-align: right; }
+
+  /* Typing indicator */
+  .typing-bubble {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 14px 18px;
+  }
+  .typing-dot {
+    width: 6px;
+    height: 6px;
+    background: var(--cyan);
+    border-radius: 50%;
+    animation: typing 1.2s ease-in-out infinite;
+  }
+  .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+  .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes typing {
+    0%,60%,100% { transform: translateY(0); opacity: 0.4; }
+    30% { transform: translateY(-6px); opacity: 1; }
+  }
+
+  /* Quick commands */
+  .quick-cmds {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    padding: 10px 14px;
+    background: rgba(0,20,45,0.5);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    flex-shrink: 0;
+  }
+  .quick-cmds span {
+    font-size: 10px;
+    color: var(--dim);
+    letter-spacing: 1px;
+    font-family: 'Share Tech Mono', monospace;
+    margin-right: 4px;
+    align-self: center;
+  }
+  .cmd-chip {
+    background: rgba(0,80,160,0.3);
+    border: 1px solid rgba(0,200,255,0.25);
+    color: #88ccff;
+    padding: 5px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: 'Share Tech Mono', monospace;
+    letter-spacing: 0.5px;
+  }
+  .cmd-chip:hover {
+    background: rgba(0,120,220,0.4);
+    border-color: var(--cyan);
+    color: var(--cyan);
+    box-shadow: 0 0 8px rgba(0,245,255,0.2);
+  }
+
+  /* Input area */
+  .input-area {
+    display: flex;
+    gap: 10px;
+    padding: 14px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    backdrop-filter: blur(20px);
+    flex-shrink: 0;
+  }
+
+  .input-field {
+    flex: 1;
+    background: rgba(0, 20, 50, 0.6);
+    border: 1px solid rgba(0,245,255,0.2);
+    border-radius: 8px;
+    padding: 12px 16px;
+    color: #cceeff;
+    font-size: 14px;
+    font-family: 'Exo 2', sans-serif;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  .input-field::placeholder { color: rgba(0,245,255,0.3); }
+  .input-field:focus {
+    border-color: var(--cyan);
+    box-shadow: 0 0 12px rgba(0,245,255,0.15);
+  }
+
+  .send-btn {
+    background: linear-gradient(135deg, #0055cc, #0077ff);
+    border: 1px solid rgba(0,180,255,0.5);
+    border-radius: 8px;
+    padding: 12px 20px;
+    color: #fff;
+    font-size: 18px;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .send-btn:hover {
+    background: linear-gradient(135deg, #0066dd, #0099ff);
+    box-shadow: 0 0 16px rgba(0,150,255,0.4);
+    transform: scale(1.03);
+  }
+  .send-btn:active { transform: scale(0.97); }
+  .send-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+  /* Welcome message styling */
+  .welcome-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-top: 8px;
+  }
+  .welcome-card {
+    background: rgba(0,50,100,0.3);
+    border: 1px solid rgba(0,245,255,0.15);
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 12px;
+    color: #88bbdd;
+    font-family: 'Share Tech Mono', monospace;
+  }
+  .welcome-card strong { display: block; color: var(--cyan); margin-bottom: 3px; font-size: 11px; }
+
+  /* Mobile responsive */
+  @media (max-width: 600px) {
+    .app { padding: 10px; gap: 8px; }
+    .header { padding: 12px 14px; }
+    .header-title { font-size: 18px; }
+    .bubble { max-width: 90%; font-size: 13px; }
+    .welcome-grid { grid-template-columns: 1fr; }
+    .status-dot span { display: none; }
+  }
+
+  /* Scan line effect */
+  .scanlines {
+    position: fixed;
+    inset: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0,0,0,0.05) 2px,
+      rgba(0,0,0,0.05) 4px
+    );
+    pointer-events: none;
+    z-index: 999;
+  }
+</style>
+</head>
+<body>
+<div class="blob blob-1"></div>
+<div class="blob blob-2"></div>
+<div class="scanlines"></div>
+
+<div class="app">
+  <!-- Header -->
+  <header class="header">
+    <div class="logo-ring"><span>J.AI</span></div>
+    <div class="header-info">
+      <div class="header-title">JARVIS AI</div>
+      <div class="header-subtitle">ADVANCED INTELLIGENCE SYSTEM — BY ROHITH &amp; YUVAN</div>
+    </div>
+    <div class="status-dot">
+      <div class="dot"></div>
+      <span>ONLINE</span>
+    </div>
+  </header>
+
+  <!-- Chat -->
+  <div class="chat-window" id="chat">
+    <!-- Welcome message injected by JS -->
+  </div>
+
+  <!-- Quick commands -->
+  <div class="quick-cmds">
+    <span>TRY:</span>
+    <button class="cmd-chip" onclick="sendQuick('what can you do')">What can you do?</button>
+    <button class="cmd-chip" onclick="sendQuick('who are you')">who are you</button>
+    <button class="cmd-chip" onclick="sendQuick('Who created you?')">Who created you?</button>
+    <button class="cmd-chip" onclick="sendQuick('commands')">commands</button>
+  </div>
+
+  <!-- Input -->
+  <div class="input-area">
+    <input
+      class="input-field"
+      id="input"
+      type="text"
+      placeholder="Enter command for JARVIS..."
+      autocomplete="off"
+      onkeydown="if(event.key==='Enter') sendMsg()"
+    />
+    <button class="send-btn" id="sendBtn" onclick="sendMsg()" title="Send">&#9658;</button>
+  </div>
+</div>
+
+<script>
+const chat = document.getElementById('chat');
+const input = document.getElementById('input');
+const sendBtn = document.getElementById('sendBtn');
+
+// Conversation history for context
+const history = [];
+
+// Welcome message on load
+function showWelcome() {
+  const welcomeHTML = `
+    <div style="margin-bottom:4px;font-family:'Share Tech Mono',monospace;font-size:10px;color:#00f5ff;letter-spacing:1.5px;">JARVIS</div>
+    <div>Welcome. I am <strong style="color:#00f5ff;">JARVIS</strong> — your advanced AI assistant, created by <strong>Rohith &amp; Yuvan</strong>.</div>
+    <div style="margin-top:8px;font-size:13px;color:#88aacc;">I can help you with:</div>
+    <div class="welcome-grid" style="margin-top:8px;">
+      <div class="welcome-card"><strong>💬 Conversation</strong>Answer any question</div>
+      <div class="welcome-card"><strong>💻 Code</strong>Write &amp; explain code</div>
+      <div class="welcome-card"><strong>🧠 Analysis</strong>Solve complex problems</div>
+      <div class="welcome-card"><strong>🚀 Ideas</strong>Brainstorm &amp; create</div>
+    </div>
+    <div style="margin-top:10px;font-size:12px;color:#445566;font-family:'Share Tech Mono',monospace;">Type any command below to begin.</div>
+  `;
+  appendBubble('jarvis', welcomeHTML, true);
+}
+
+function appendBubble(who, content, isHTML = false) {
+  const msg = document.createElement('div');
+  msg.className = `msg ${who}`;
+
+  const avatarText = who === 'jarvis' ? 'J.AI' : 'YOU';
+  const avatarClass = who === 'jarvis' ? 'jarvis' : 'user-av';
+  const label = who === 'jarvis' ? 'JARVIS' : 'YOU';
+
+  msg.innerHTML = `
+    <div class="avatar ${avatarClass}">${avatarText}</div>
+    <div>
+      <div class="sender-label">${label}</div>
+      <div class="bubble">${isHTML ? content : escapeHTML(content)}</div>
+    </div>
+  `;
+
+  chat.appendChild(msg);
+  chat.scrollTop = chat.scrollHeight;
+  return msg;
+}
+
+function showTyping() {
+  const msg = document.createElement('div');
+  msg.className = 'msg jarvis';
+  msg.id = 'typing';
+  msg.innerHTML = `
+    <div class="avatar jarvis">J.AI</div>
+    <div>
+      <div class="sender-label">JARVIS</div>
+      <div class="bubble typing-bubble">
+        <div class="typing-dot"></div>
+        <div class="typing-dot"></div>
+        <div class="typing-dot"></div>
+      </div>
+    </div>
+  `;
+  chat.appendChild(msg);
+  chat.scrollTop = chat.scrollHeight;
+}
+
+function removeTyping() {
+  const t = document.getElementById('typing');
+  if (t) t.remove();
+}
+
+function escapeHTML(str) {
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
+}
+
+function formatResponse(text) {
+  // Simple markdown-like formatting
+  return text
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/`([^`]+)`/g, '<code style="background:rgba(0,200,255,0.1);padding:2px 6px;border-radius:4px;font-family:\'Share Tech Mono\',monospace;color:#00f5ff;font-size:12px;">$1</code>')
+    .replace(/\n/g, '<br>');
+}
+
+function jarvisBrain(input) {
+  const msg = input.toLowerCase().trim();
+
+  if (msg.includes("hi") || msg.includes("hello") || msg.includes("hey")) {
+    return "Hello. JARVIS online. How can I assist you?";
+  }
+
+  if (msg.includes("who are you")) {
+    return "I am JARVIS, an advanced AI-style assistant interface.";
+  }
+
+  if (msg.includes("who created you")) {
+    return "I was created by Rohith and Yuvan as part of Project JARVIS.";
+  }
+
+  if (msg.includes("what can you do")) {
+    return "I can chat with you, answer predefined questions, and demonstrate the JARVIS interface.";
+  }
+
+  if (msg.includes("time")) {
+    return "Current time: " + new Date().toLocaleTimeString();
+  }
+
+  if (msg.includes("date")) {
+    return "Today's date: " + new Date().toDateString();
+  }
+
+  if (msg.includes("joke")) {
+    return "Why do programmers prefer dark mode? Because light attracts bugs.";
+  }
+
+
+   if (msg.includes("status")) {
+    return "All systems are running normally. Offline mode active.";
+  }
+
+  if (msg.includes("open google")) {
+    window.open("https://www.google.com", "_blank");
+    return "Opening Google.";
+  }
+
+  if (msg.includes("open youtube")) {
+    window.open("https://www.youtube.com", "_blank");
+    return "Opening YouTube.";
+  }
+
+  if (msg.includes("motivate") || msg.includes("motivation")) {
+    return "Push yourself, because no one else is going to do it for you.";
+  }
+
+  if (msg.includes("calculator")) {
+    return "Calculator mode coming soon. For now, try basic math like: 2 + 2";
+  }
+
+  if (msg.match(/(\d+)\s*[\+\-\*\/]\s*(\d+)/)) {
+    try {
+      return "Result: " + eval(msg);
+    } catch {
+      return "Invalid calculation.";
+    }
+  }
+
+  if (msg.includes("clear")) {
+    chat.innerHTML = "";
+    return "Chat cleared.";
+  }
+
+  if (msg.includes("your name")) {
+    return "My name is JARVIS.";
+  }
+
+
+  if (msg.includes("command")) {
+    return "Commands:\t\nTime\nDate\nStatus\nOpen google\nOpen youtube\nMotivate\nCalculator\nClear chat.";
+  }
+
+
+
+
+
+
+    if (msg.includes("thank")) {
+    return "You're welcome.";
+  }
+
+
+
+  return "I am running in offline mode. Please try another command.";
+}
+
+
+function sendMsg() {
+  const text = input.value.trim();
+  if (!text) return;
+
+  input.value = '';
+  sendBtn.disabled = true;
+
+  appendBubble('user', text);
+
+  showTyping();
+
+  setTimeout(() => {
+    removeTyping();
+
+    const reply = jarvisBrain(text);
+
+    const msgEl = appendBubble('jarvis', '', true);
+    msgEl.querySelector('.bubble').innerHTML = formatResponse(reply);
+
+    chat.scrollTop = chat.scrollHeight;
+    sendBtn.disabled = false;
+    input.focus();
+  }, 600);
+}
+
+
+
+function sendQuick(text) {
+  input.value = text;
+  sendMsg();
+}
+
+// Init
+showWelcome();
+input.focus();
+</script>
+</body>
+</html>
