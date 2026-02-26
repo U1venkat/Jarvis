@@ -569,8 +569,9 @@ function jarvisBrain(input) {
     return "Opening YouTube.";
   }
 
-  if (msg.includes("motivate") || msg.includes("motivation")) {
-    return "Push yourself, because no one else is going to do it for you.";
+  if (msg.includes("motivate")) {
+    window.open("https://youtube.com/shorts/3yuVsNEQur0?si=OYQ84T6TnpTlWM0G", "_blank");
+    return "motivating.";
   }
 
   if (msg.includes("calculator")) {
@@ -652,3 +653,4 @@ input.focus();
 </script>
 </body>
 </html>
+
